@@ -1,0 +1,114 @@
+name: CI/CD Ferienkalender
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── CI: Lint, Typecheck, Test, Build ──────────────────────────
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Tests
+        run: npm test --if-present
+
+      - name: Build
+        run: npm run build --if-present
+        env:
+          ABACUS_SERVER_URL: ${{ secrets.ABACUS_SERVER_URL }}
+          ABACUS_MANDANT: ${{ secrets.ABACUS_MANDANT }}
+          ABACUS_CLIENT_ID: ${{ secrets.ABACUS_CLIENT_ID }}
+          ABACUS_CLIENT_SECRET: ${{ secrets.ABACUS_CLIENT_SECRET }}
+
+  # ── Deploy Staging (nur auf main) ─────────────────────────────
+  deploy-staging:
+    name: Deploy → Staging
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: staging
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build --if-present
+        env:
+          ABACUS_SERVER_URL: ${{ secrets.ABACUS_SERVER_URL }}
+          ABACUS_MANDANT: ${{ secrets.ABACUS_MANDANT }}
+          ABACUS_CLIENT_ID: ${{ secrets.ABACUS_CLIENT_ID }}
+          ABACUS_CLIENT_SECRET: ${{ secrets.ABACUS_CLIENT_SECRET }}
+
+      - name: Deploy to Staging
+        run: echo "Hier Deploy-Befehl einfügen (z.B. Netlify CLI, Railway, SSH)"
+        env:
+          ABACUS_SERVER_URL: ${{ secrets.ABACUS_SERVER_URL }}
+          ABACUS_MANDANT: ${{ secrets.ABACUS_MANDANT }}
+          ABACUS_CLIENT_ID: ${{ secrets.ABACUS_CLIENT_ID }}
+          ABACUS_CLIENT_SECRET: ${{ secrets.ABACUS_CLIENT_SECRET }}
+
+  # ── Deploy Production (nach manuellem Freigabe-Click) ─────────
+  deploy-production:
+    name: Deploy → Production
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment: production
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build --if-present
+        env:
+          ABACUS_SERVER_URL: ${{ secrets.ABACUS_SERVER_URL }}
+          ABACUS_MANDANT: ${{ secrets.ABACUS_MANDANT }}
+          ABACUS_CLIENT_ID: ${{ secrets.ABACUS_CLIENT_ID }}
+          ABACUS_CLIENT_SECRET: ${{ secrets.ABACUS_CLIENT_SECRET }}
+
+      - name: Deploy to Production
+        run: echo "Hier Production-Deploy-Befehl einfügen"
+        env:
+          ABACUS_SERVER_URL: ${{ secrets.ABACUS_SERVER_URL }}
+          ABACUS_MANDANT: ${{ secrets.ABACUS_MANDANT }}
+          ABACUS_CLIENT_ID: ${{ secrets.ABACUS_CLIENT_ID }}
+          ABACUS_CLIENT_SECRET: ${{ secrets.ABACUS_CLIENT_SECRET }}
